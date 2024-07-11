@@ -94,6 +94,9 @@ func parseRequest(requestString string) (string, string, string, map[string]stri
 	}
 
 	body := requestString[i+2:]
+	if strings.Index(body, "\x00") != -1 {
+		body = body[0:strings.Index(body, "\x00")]
+	}
 
 	return verb, path, protocol, headers, body
 }
