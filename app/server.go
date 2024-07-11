@@ -27,10 +27,39 @@ func main() {
 	connection.Read(buffer)
 
 	requestString := string(buffer)
-	if !strings.HasPrefix(requestString, "GET / HTTP/1.1") {
-		connection.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
+	i := strings.Index(requestString, "\r\n")
+	if i == -1 {
+		fmt.Println("Error reading request: no next line was found")
+		os.Exit(1)
 	}
 
-	response := "HTTP/1.1 200 OK\r\n\r\n"
-	connection.Write([]byte(response))
+	firstLine := requestString[0:i]
+	fields := strings.Fields(firstLine)
+	if len(fields) != 3 {
+		fmt.Println("Error reading request: expected 3 parameters, got ", len(fields))
+		os.Exit(1)
+	}
+
+	verb := fields[0]
+	path := fields[1]
+	protocol := fields[2]
+
+	if verb != "GET" {
+		fmt.Println("Error reading request: non GET request detected. only supporting GET right now")
+		os.Exit(1)
+	}
+	if protocol != "HTTP/1.1" {
+		fmt.Println("Error reading request: only supporting HTTP/1.1 right now")
+		os.Exit(1)
+	}
+
+	if path == "/" {
+		connection.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
+	} else if strings.HasPrefix(path, "/echo/") {
+		restOfPath := path[6:]
+		msg := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s)", len(restOfPath), restOfPath)
+		connection.Write([]byte(msg))
+	} else {
+		connection.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
+	}
 }
