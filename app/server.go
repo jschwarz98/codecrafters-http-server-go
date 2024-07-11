@@ -18,12 +18,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	connection, err := l.Accept()
-	if err != nil {
-		fmt.Println("Error accepting connection: ", err.Error())
-		os.Exit(1)
+	for {
+		connection, err := l.Accept()
+		if err != nil {
+			fmt.Println("Error accepting connection: ", err.Error())
+			os.Exit(1)
+		}
+		go handleConnection(connection)
 	}
 
+}
+
+func handleConnection(connection net.Conn) {
 	buffer := make([]byte, 2048)
 	connection.Read(buffer)
 
@@ -39,7 +45,6 @@ func main() {
 
 	connection.Write([]byte(c))
 }
-
 func parseRequest(requestString string) (string, string, string, map[string]string, string) {
 	i := strings.Index(requestString, "\r\n")
 	if i == -1 {
