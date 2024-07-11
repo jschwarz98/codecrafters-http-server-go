@@ -9,9 +9,19 @@ import (
 )
 
 func main() {
-	// You can use print statements as follows for debugging, they'll be visible when running tests.
-	fmt.Println("Logs from your program will appear here!")
+	pathArg := "./"
+	foundPathFlag := false
+	for _, arg := range os.Args {
+		if foundPathFlag {
+			foundPathFlag = false
+			pathArg = arg
+		}
+		if arg == "--directory" {
+			foundPathFlag = true
+		}
+	}
 
+	// TODO pass args and check for path flag. maybe default to ./ otherwhise use the given path
 	l, err := net.Listen("tcp", "0.0.0.0:4221")
 	if err != nil {
 		fmt.Println("Failed to bind to port 4221")
@@ -24,12 +34,12 @@ func main() {
 			fmt.Println("Error accepting connection: ", err.Error())
 			os.Exit(1)
 		}
-		go handleConnection(connection)
+		go handleConnection(connection, pathArg)
 	}
 
 }
 
-func handleConnection(connection net.Conn) {
+func handleConnection(connection net.Conn, filePath string) {
 	buffer := make([]byte, 2048)
 	connection.Read(buffer)
 
@@ -37,7 +47,7 @@ func handleConnection(connection net.Conn) {
 
 	verb, path, protocol, headers, body := parseRequest(requestString)
 
-	c, err := responseContent(connection, verb, path, protocol, headers, body)
+	c, err := responseContent(connection, filePath, verb, path, protocol, headers, body)
 	if err != nil {
 		fmt.Println("error during response generation:", err.Error())
 		os.Exit(1)
@@ -88,7 +98,7 @@ func parseRequest(requestString string) (string, string, string, map[string]stri
 	return verb, path, protocol, headers, body
 }
 
-func responseContent(connection net.Conn, verb, path, protocol string, headers map[string]string, body string) (string, error) {
+func responseContent(connection net.Conn, filePath, verb, path, protocol string, headers map[string]string, body string) (string, error) {
 	_ = body
 	if verb != "GET" {
 		fmt.Println("Error reading request: non GET request detected. only supporting GET right now")
@@ -107,6 +117,9 @@ func responseContent(connection net.Conn, verb, path, protocol string, headers m
 		s = plainTextResponse(restOfPath)
 	} else if path == "/user-agent" {
 		s = plainTextResponse(headers["user-agent"])
+	} else if strings.HasPrefix(path, "/files/") {
+		requestedFile := path[len("/files/"):]
+		s = fileReponse(filePath, requestedFile)
 	} else {
 		connection.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
 	}
@@ -115,4 +128,19 @@ func responseContent(connection net.Conn, verb, path, protocol string, headers m
 
 func plainTextResponse(content string) string {
 	return fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s)", len(content), content)
+}
+
+func fileReponse(directory, filename string) string {
+	fullPath := directory
+	if !strings.HasSuffix("/", directory) {
+		fullPath += "/"
+	}
+	fullPath += filename
+
+	content, err := os.ReadFile(fullPath)
+
+	if err != nil {
+		return "HTTP/1.1 404 Not Found\r\n\r\n"
+	}
+	return fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %d\r\n\r\n%s)", len(content), content)
 }
