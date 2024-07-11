@@ -99,29 +99,31 @@ func parseRequest(requestString string) (string, string, string, map[string]stri
 }
 
 func responseContent(connection net.Conn, filePath, verb, path, protocol string, headers map[string]string, body string) (string, error) {
-	_ = body
-	if verb != "GET" {
-		fmt.Println("Error reading request: non GET request detected. only supporting GET right now")
-		return "", errors.New("non Get Request detected")
-	}
 	if protocol != "HTTP/1.1" {
 		fmt.Println("Error reading request: only supporting HTTP/1.1 right now")
 		return "", errors.New("non HTTP/1.1 Request detected")
 	}
 
-	s := ""
-	if path == "/" {
-		s = "HTTP/1.1 200 OK\r\n\r\n"
-	} else if strings.HasPrefix(path, "/echo/") {
-		restOfPath := path[6:]
-		s = plainTextResponse(restOfPath)
-	} else if path == "/user-agent" {
-		s = plainTextResponse(headers["user-agent"])
-	} else if strings.HasPrefix(path, "/files/") {
-		requestedFile := path[len("/files/"):]
-		s = fileReponse(filePath, requestedFile)
-	} else {
-		connection.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
+	s := "HTTP/1.1 404 Not Found\r\n\r\n"
+	if verb == "GET" {
+		if path == "/" {
+			s = "HTTP/1.1 200 OK\r\n\r\n"
+		} else if strings.HasPrefix(path, "/echo/") {
+			restOfPath := path[6:]
+			s = plainTextResponse(restOfPath)
+		} else if path == "/user-agent" {
+			s = plainTextResponse(headers["user-agent"])
+		} else if strings.HasPrefix(path, "/files/") {
+			requestedFile := path[len("/files/"):]
+			s = fileReponse(filePath, requestedFile)
+		} else {
+			connection.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
+		}
+	} else if verb == "POST" {
+		if strings.HasPrefix(path, "/files/") {
+			filename := path[len("/files/"):]
+			s = storeFile(filePath, filename, body)
+		}
 	}
 	return s, nil
 }
@@ -130,17 +132,24 @@ func plainTextResponse(content string) string {
 	return fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s)", len(content), content)
 }
 
-func fileReponse(directory, filename string) string {
-	fullPath := directory
-	if !strings.HasSuffix("/", directory) {
+func fullPath(dir, name string) string {
+	fullPath := dir
+	if !strings.HasSuffix("/", dir) {
 		fullPath += "/"
 	}
-	fullPath += filename
+	fullPath += name
+	return fullPath
+}
 
-	content, err := os.ReadFile(fullPath)
-
+func fileReponse(directory, filename string) string {
+	content, err := os.ReadFile(fullPath(directory, filename))
 	if err != nil {
 		return "HTTP/1.1 404 Not Found\r\n\r\n"
 	}
 	return fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %d\r\n\r\n%s)", len(content), content)
+}
+
+func storeFile(path, name, content string) string {
+	os.WriteFile(fullPath(path, name), []byte(content), os.FileMode(int(0777)))
+	return "HTTP/1.1 201 Created\r\n\r\n"
 }
