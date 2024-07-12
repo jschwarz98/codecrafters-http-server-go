@@ -3,7 +3,11 @@ package main
 import "testing"
 
 func TestParseRequest(t *testing.T) {
-	verb, path, protocol, headers, body := parseRequest("GET /user-agent HTTP/1.1\r\nUser-Agent: test-client\r\n\r\nmy body :)")
+	verb, path, protocol, headers, body, err := parseRequest("GET /user-agent HTTP/1.1\r\nUser-Agent: test-client\r\n\r\nmy body :)")
+
+	if err != nil {
+		t.Errorf("should not error out: %s", err.Error())
+	}
 
 	if verb != "GET" {
 		t.Errorf("verb should be GET but got %s", verb)
