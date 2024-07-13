@@ -22,10 +22,12 @@ func ResponseContent(filePath, verb, path, protocol string, headers map[string]s
 	s := status.NOT_FOUND
 	responseHeaders := make(map[string]string)
 
-	accepts := strings.Split(headers["accept-enconding"], ",")
+	fmt.Println("accept encoding: ", headers[status.ACCEPT_ENCODING])
+	accepts := strings.Split(headers[status.ACCEPT_ENCODING], ",")
 	for _, a := range accepts {
+		fmt.Println(a)
 		if strings.TrimSpace(a) == "gzip" {
-			responseHeaders["Content-Encoding"] = "gzip"
+			responseHeaders[status.CONTENT_ENCODING] = "gzip"
 		}
 	}
 	resBody := ""
@@ -38,7 +40,6 @@ func ResponseContent(filePath, verb, path, protocol string, headers map[string]s
 		} else if path == "/user-agent" {
 			s, responseHeaders, resBody = plainTextResponse(headers["user-agent"], responseHeaders)
 		} else if strings.HasPrefix(path, "/files/") {
-			responseHeaders["Content-Type"] = "application/octet-stream"
 			requestedFile := path[len("/files/"):]
 			s, responseHeaders, resBody = fileReponse(filePath, requestedFile, responseHeaders)
 		} else {
@@ -53,7 +54,7 @@ func ResponseContent(filePath, verb, path, protocol string, headers map[string]s
 		}
 	}
 	if len(resBody) > 0 {
-		responseHeaders["Content-Length"] = fmt.Sprintf("%d", len(resBody))
+		responseHeaders[status.CONTENT_LENGTH] = fmt.Sprintf("%d", len(resBody))
 	}
 
 	response := s
@@ -73,8 +74,8 @@ func ResponseContent(filePath, verb, path, protocol string, headers map[string]s
 }
 
 func plainTextResponse(content string, responseHeaders map[string]string) (string, map[string]string, string) {
-	responseHeaders["Content-Type"] = "text/plain"
-	if responseHeaders["Content-Encoding"] == "gzip" {
+	responseHeaders[status.CONTENT_TYPE] = "text/plain"
+	if responseHeaders[status.CONTENT_ENCODING] == "gzip" {
 		// TODO
 		content = encodeGZIP(content)
 	}
@@ -96,9 +97,9 @@ func fileReponse(directory, filename string, responseHeaders map[string]string) 
 		return status.NOT_FOUND, responseHeaders, ""
 	}
 	content := string(c)
-	responseHeaders["Content-Type"] = "application/octet-stream"
+	responseHeaders[status.CONTENT_TYPE] = "application/octet-stream"
 
-	if responseHeaders["Content-Encoding"] == "gzip" {
+	if responseHeaders[status.CONTENT_ENCODING] == "gzip" {
 		content = encodeGZIP(content)
 	}
 
