@@ -31,6 +31,8 @@ func main() {
 }
 
 func handleConnection(connection net.Conn, filePath string) {
+	defer connection.Close()
+
 	buffer := make([]byte, BUFFER_SIZE)
 	connection.Read(buffer)
 

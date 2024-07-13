@@ -1,6 +1,8 @@
 package request
 
 import (
+	"bytes"
+	"compress/gzip"
 	"errors"
 	"fmt"
 	"os"
@@ -111,6 +113,21 @@ func storeFile(path, name, content string) string {
 }
 
 func encodeGZIP(content string) string {
-	// TODO
-	return content
+	var buffer bytes.Buffer
+	writer := gzip.NewWriter(&buffer)
+
+	_, err := writer.Write([]byte(content))
+
+	if err != nil {
+		return ""
+	}
+	err = writer.Flush()
+	if err != nil {
+		return ""
+	}
+	err = writer.Close()
+	if err != nil {
+		return ""
+	}
+	return buffer.String()
 }
