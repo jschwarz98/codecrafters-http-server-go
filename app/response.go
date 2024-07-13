@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/codecrafters-io/http-server-starter-go/app/status"
 )
 
 func internalServerError() string {
-	return "HTTP/1.1 500 Internal Server Error\r\n\r\n"
+	return status.NOT_FOUND + "\r\n" // no headers
 }
 
 func responseContent(filePath, verb, path, protocol string, headers map[string]string, body string) (string, error) {
@@ -17,34 +19,64 @@ func responseContent(filePath, verb, path, protocol string, headers map[string]s
 		return "", errors.New("non HTTP/1.1 Request detected")
 	}
 
-	s := "HTTP/1.1 404 Not Found\r\n\r\n"
+	s := status.NOT_FOUND + "\r\n"
+	responseHeaders := make(map[string]string)
+
+	accepts := strings.Split(headers["Accept-Enconding"], ",")
+	for _, a := range accepts {
+		if strings.TrimSpace(a) == "gzip" {
+			responseHeaders["Content-Encoding"] = "gzip"
+		}
+	}
+	resBody := ""
 	if verb == "GET" {
 		if path == "/" {
-			s = "HTTP/1.1 200 OK\r\n\r\n"
+			s = status.OK
 		} else if strings.HasPrefix(path, "/echo/") {
-			restOfPath := path[6:]
-			s = plainTextResponse(restOfPath)
+			restOfPath := path[len("/echo/"):]
+			s, responseHeaders, resBody = plainTextResponse(restOfPath, responseHeaders)
 		} else if path == "/user-agent" {
-			s = plainTextResponse(headers["user-agent"])
+			s, responseHeaders, resBody = plainTextResponse(headers["user-agent"], responseHeaders)
 		} else if strings.HasPrefix(path, "/files/") {
+			responseHeaders["Content-Type"] = "application/octet-stream"
 			requestedFile := path[len("/files/"):]
-			s = fileReponse(filePath, requestedFile)
+			s, responseHeaders, resBody = fileReponse(filePath, requestedFile, responseHeaders)
 		} else {
-			s = "HTTP/1.1 404 Not Found\r\n\r\n"
+			s = status.NOT_FOUND
 		}
 	} else if verb == "POST" {
 		if strings.HasPrefix(path, "/files/") {
 			filename := path[len("/files/"):]
 			s = storeFile(filePath, filename, body)
 		} else {
-			s = "HTTP/1.1 404 Not Found\r\n\r\n"
+			s = status.NOT_FOUND
 		}
 	}
+	if len(resBody) > 0 {
+		responseHeaders["Content-Length"] = string(len(resBody))
+	}
+
+	response := s
+
+	for key := range responseHeaders {
+		val := responseHeaders[key]
+		if val != "" {
+			response += key + ": " + val + "\r\n"
+		}
+	}
+	response += "\r\n"
+	response += resBody
+
 	return s, nil
 }
 
-func plainTextResponse(content string) string {
-	return fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s)", len(content), content)
+func plainTextResponse(content string, responseHeaders map[string]string) (string, map[string]string, string) {
+	responseHeaders["Content-Type"] = "text/plain"
+	if responseHeaders["Content-Encoding"] == "gzip" {
+		// TODO
+		content = encodeGZIP(content)
+	}
+	return status.OK, responseHeaders, content
 }
 
 func fullPath(dir, name string) string {
@@ -56,15 +88,26 @@ func fullPath(dir, name string) string {
 	return fullPath
 }
 
-func fileReponse(directory, filename string) string {
-	content, err := os.ReadFile(fullPath(directory, filename))
+func fileReponse(directory, filename string, responseHeaders map[string]string) (string, map[string]string, string) {
+	c, err := os.ReadFile(fullPath(directory, filename))
 	if err != nil {
-		return "HTTP/1.1 404 Not Found\r\n\r\n"
+		return status.NOT_FOUND, responseHeaders, ""
 	}
-	return fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %d\r\n\r\n%s)", len(content), content)
-}
+	content := string(c)
+	responseHeaders["Content-Type"] = "application/octet-stream"
 
+	if responseHeaders["Content-Encoding"] == "gzip" {
+		content = encodeGZIP(content)
+	}
+
+	return status.OK, responseHeaders, content
+}
 func storeFile(path, name, content string) string {
 	os.WriteFile(fullPath(path, name), []byte(content), os.FileMode(int(0777)))
-	return "HTTP/1.1 201 Created\r\n\r\n"
+	return status.CREATED
+}
+
+func encodeGZIP(content string) string {
+	// TODO
+	return content
 }

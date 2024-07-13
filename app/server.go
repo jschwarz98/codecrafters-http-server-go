@@ -11,7 +11,6 @@ const BUFFER_SIZE = 8192
 func main() {
 	pathArg := getPathFromArgs()
 
-	// TODO pass args and check for path flag. maybe default to ./ otherwhise use the given path
 	l, err := net.Listen("tcp", "0.0.0.0:4221")
 	if err != nil {
 		fmt.Println("Failed to bind to port 4221")
