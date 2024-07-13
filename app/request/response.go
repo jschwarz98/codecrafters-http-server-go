@@ -22,7 +22,7 @@ func ResponseContent(filePath, verb, path, protocol string, headers map[string]s
 	s := status.NOT_FOUND
 	responseHeaders := make(map[string]string)
 
-	accepts := strings.Split(headers["Accept-Enconding"], ",")
+	accepts := strings.Split(headers["accept-enconding"], ",")
 	for _, a := range accepts {
 		if strings.TrimSpace(a) == "gzip" {
 			responseHeaders["Content-Encoding"] = "gzip"
