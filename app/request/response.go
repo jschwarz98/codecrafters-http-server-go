@@ -1,4 +1,4 @@
-package main
+package request
 
 import (
 	"errors"
@@ -9,17 +9,17 @@ import (
 	"github.com/codecrafters-io/http-server-starter-go/app/status"
 )
 
-func internalServerError() string {
-	return status.NOT_FOUND + "\r\n" // no headers
+func InternalServerError() string {
+	return status.INTERNAL_SERVER_ERROR + "\r\n" // no headers
 }
 
-func responseContent(filePath, verb, path, protocol string, headers map[string]string, body string) (string, error) {
+func ResponseContent(filePath, verb, path, protocol string, headers map[string]string, body string) (string, error) {
 	if protocol != "HTTP/1.1" {
 		fmt.Println("Error reading request: only supporting HTTP/1.1 right now")
 		return "", errors.New("non HTTP/1.1 Request detected")
 	}
 
-	s := status.NOT_FOUND + "\r\n"
+	s := status.NOT_FOUND
 	responseHeaders := make(map[string]string)
 
 	accepts := strings.Split(headers["Accept-Enconding"], ",")
@@ -53,11 +53,13 @@ func responseContent(filePath, verb, path, protocol string, headers map[string]s
 		}
 	}
 	if len(resBody) > 0 {
-		responseHeaders["Content-Length"] = string(len(resBody))
+		responseHeaders["Content-Length"] = fmt.Sprintf("%d", len(resBody))
 	}
 
 	response := s
 
+	fmt.Println("Response Headers:", responseHeaders)
+	fmt.Println("Response Body:", resBody)
 	for key := range responseHeaders {
 		val := responseHeaders[key]
 		if val != "" {
@@ -67,7 +69,7 @@ func responseContent(filePath, verb, path, protocol string, headers map[string]s
 	response += "\r\n"
 	response += resBody
 
-	return s, nil
+	return response, nil
 }
 
 func plainTextResponse(content string, responseHeaders map[string]string) (string, map[string]string, string) {

@@ -1,9 +1,13 @@
 package main
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/codecrafters-io/http-server-starter-go/app/request"
+)
 
 func TestParseRequest(t *testing.T) {
-	verb, path, protocol, headers, body, err := parseRequest("GET /user-agent HTTP/1.1\r\nUser-Agent: test-client\r\n\r\nmy body :)")
+	verb, path, protocol, headers, body, err := request.ParseRequest("GET /user-agent HTTP/1.1\r\nUser-Agent: test-client\r\n\r\nmy body :)")
 
 	if err != nil {
 		t.Errorf("should not error out: %s", err.Error())

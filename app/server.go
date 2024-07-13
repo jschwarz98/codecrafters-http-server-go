@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 	"os"
+
+	"github.com/codecrafters-io/http-server-starter-go/app/request"
 )
 
 const BUFFER_SIZE = 8192
@@ -34,16 +36,22 @@ func handleConnection(connection net.Conn, filePath string) {
 
 	requestString := string(buffer)
 
-	verb, path, protocol, headers, body, err := parseRequest(requestString)
+	fmt.Println("parsing request")
+
+	verb, path, protocol, headers, body, err := request.ParseRequest(requestString)
 	if err != nil {
-		connection.Write([]byte(internalServerError()))
+		connection.Write([]byte(request.InternalServerError()))
 		return
 	}
 
-	c, err := responseContent(filePath, verb, path, protocol, headers, body)
+	fmt.Println("generating content", verb, path, protocol, headers, body)
+	c, err := request.ResponseContent(filePath, verb, path, protocol, headers, body)
 	if err != nil {
-		connection.Write([]byte(internalServerError()))
+		connection.Write([]byte(request.InternalServerError()))
+		return
 	}
+
+	fmt.Println("got response", c)
 
 	connection.Write([]byte(c))
 }

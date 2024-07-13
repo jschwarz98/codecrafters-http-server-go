@@ -1,4 +1,4 @@
-package main
+package request
 
 import (
 	"errors"
@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func parseRequest(requestString string) (string, string, string, map[string]string, string, error) {
+func ParseRequest(requestString string) (string, string, string, map[string]string, string, error) {
 	headers := make(map[string]string)
 	i := strings.Index(requestString, "\r\n")
 
